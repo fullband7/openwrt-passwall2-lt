@@ -1,0 +1,316 @@
+<%
+local api = require "luci.passwall2.api"
+-%>
+<script src="<%=resource%>/view/<%=api.appname%>/Sortable.min.js?v=26.1.27"></script>
+<link rel="stylesheet" href="<%=resource%>/view/<%=api.appname%>/nodes.css">
+<%+passwall2/modal_node/overlay%>
+
+<style>
+#cbi-passwall2-acl {
+	--pw-radius: 10px;
+	--pw-gap: 8px;
+	--pw-pad-y: 10px;
+	--pw-pad-x: 12px;
+	--pw-border: rgba(127,127,127,0.25);
+	--pw-row-bg: rgba(127,127,127,0.05);
+	--pw-row-bg-alt: rgba(127,127,127,0.09);
+	--pw-row-bg-hover: rgba(127,127,127,0.14);
+	--pw-header-bg: rgba(127,127,127,0.16);
+	--pw-accent: #5e72e4;
+	--pw-accent-bg: rgba(94,114,228,0.15);
+	--pw-badge-bg: rgba(127,127,127,0.16);
+	--pw-cols: 40px minmax(140px,1fr) minmax(160px,1.4fr) 180px 200px;
+}
+
+@media (prefers-color-scheme: dark) {
+	#cbi-passwall2-acl {
+		--pw-border: rgba(255,255,255,0.14);
+		--pw-row-bg: rgba(255,255,255,0.04);
+		--pw-row-bg-alt: rgba(255,255,255,0.07);
+		--pw-row-bg-hover: rgba(255,255,255,0.11);
+		--pw-header-bg: rgba(255,255,255,0.09);
+		--pw-accent: #6d8bff;
+		--pw-accent-bg: rgba(109,139,255,0.22);
+		--pw-badge-bg: rgba(255,255,255,0.1);
+	}
+}
+
+.pw-acl-grid {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pw-gap);
+	margin-bottom:10px;
+}
+
+.pw-acl-row {
+	display: grid;
+	grid-template-columns: var(--pw-cols);
+	align-items: center;
+	gap: 14px;
+	padding: var(--pw-pad-y) var(--pw-pad-x);
+	border: 1px solid var(--pw-border);
+	border-radius: var(--pw-radius);
+	background: var(--pw-row-bg);
+	transition: background-color .15s ease;
+}
+
+.pw-acl-row.cbi-rowstyle-2 {
+	background: var(--pw-row-bg-alt);
+}
+
+.pw-acl-row:not(.pw-row-header):hover {
+	background: var(--pw-row-bg-hover);
+}
+
+.pw-row-header {
+	background: var(--pw-header-bg);
+	font-weight: 600;
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: .02em;
+	opacity: 0.75;
+}
+
+.pw-acl-remark {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	text-align: left;
+	min-width: 0;
+}
+
+.pw-acl-remark .drag-handle {
+	cursor: grab;
+	font-size: 20px;
+	font-weight: 100;
+	line-height: 1;
+	user-select: none;
+	flex: 0 0 auto;
+}
+
+.pw-acl-remark .pw-remark-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pw-acl-sources {
+	font-size: 0.9em;
+	line-height: 1.4;
+	word-break: break-word;
+}
+
+.pw-acl-interface {
+	font-size: 0.9em;
+}
+
+.pw-acl-actions {
+	display: flex;
+	gap: 4px;
+	justify-content: flex-end;
+}
+
+.sortable-chosen {
+	background-color: var(--pw-row-bg-hover) !important;
+	opacity: 0.7;
+}
+
+.sortable-ghost {
+	background: var(--pw-accent-bg) !important;
+	height: 3px !important;
+}
+
+.dragging-row {
+	background-color: var(--pw-accent-bg) !important;
+	box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+}
+
+@media screen and (max-width: 900px) {
+	#cbi-passwall2-acl {
+		--pw-cols: 40px 1fr;
+	}
+
+	.pw-row-header {
+		display: none !important;
+	}
+
+	.pw-acl-row {
+		grid-template-columns: 40px 1fr;
+		row-gap: 6px;
+	}
+
+	.pw-acl-actions {
+		grid-column: 1 / -1;
+		justify-content: flex-start;
+		padding-top: 6px;
+		border-top: 1px dashed var(--pw-border);
+	}
+
+	.pw-acl-sources, .pw-acl-interface {
+		grid-column: 2 / -1;
+	}
+}
+</style>
+
+<fieldset class="cbi-section" id="cbi-passwall2-acl">
+	<div class="pw-acl-grid" id="pw-acl-grid">
+		<div class="pw-acl-row pw-row-header">
+			<div></div>
+			<div><%:Remarks%></div>
+			<div><%:Source%></div>
+			<div><%:Interface%></div>
+			<div></div>
+		</div>
+	</div>
+	<div class="cbi-section-create cbi-tblsection-create">
+		<input class="cbi-button cbi-button-add" type="button" value="<%:Add%>" onclick="pwAclAdd()">
+		<input class="cbi-button cbi-button-apply" style="display:none" type="button" id="pw-acl-save-order" value="<%:Save Order%>" onclick="pwAclSaveOrder()">
+	</div>
+</fieldset>
+
+<script type="text/template" id="acl-row-template">
+	<div class="pw-acl-row cbi-section-table-row" id="pw-acl-{{id}}">
+		<div>
+			<input type="checkbox" class="cbi-input-checkbox" {{checked}} onclick="pwAclToggle('{{id}}', this)"/>
+		</div>
+		<div class="pw-acl-remark">
+			<span class="drag-handle" title="<%:Drag to reorder%>">⠿</span>
+			<span class="pw-remark-text">{{remarks}}</span>
+		</div>
+		<div class="pw-acl-sources">{{sources}}</div>
+		<div class="pw-acl-interface">{{interface}}</div>
+		<div class="pw-acl-actions">
+			<input class="btn cbi-button cbi-button-edit" type="button" value="<%:Edit%>" onclick="pwAclEdit('{{id}}')"/>
+			<input class="btn cbi-button cbi-button-remove" type="button" value="<%:Delete%>" onclick="pwAclDelete('{{id}}')"/>
+		</div>
+	</div>
+</script>
+
+<script type="text/javascript">
+	var pwAclOriginOrder = [];
+
+	function pwAclAdd() {
+		window.location.href = '<%=api.url("add_acl_rule")%>';
+	}
+
+	function pwAclEdit(id) {
+		window.location.href = '<%=api.url("acl_config")%>/' + id;
+	}
+
+	function pwAclDelete(id) {
+		pwConfirm('<%:Are you sure to delete this rule?%>', function() {
+			XHR.get('<%=api.url("del_acl_rule")%>', { id: id }, function(x) {
+				if (x && x.status == 200) {
+					document.getElementById('pw-acl-' + id).remove();
+				} else {
+					pwAlert('<%:Error%>');
+				}
+			});
+		});
+	}
+
+	function pwAclToggle(id, box) {
+		XHR.get('<%=api.url("toggle_acl_rule")%>', { id: id, enabled: box.checked ? 1 : 0 }, function(x) {
+			if (!x || x.status != 200) {
+				pwAlert('<%:Error%>');
+				box.checked = !box.checked;
+			}
+		});
+	}
+
+	function pwAclGetOrder() {
+		var rows = document.querySelectorAll('#pw-acl-grid .cbi-section-table-row');
+		var ids = [];
+		rows.forEach(function(row) {
+			ids.push(row.id.replace('pw-acl-', ''));
+		});
+		return ids;
+	}
+
+	function pwAclArraysEqual(a, b) {
+		if (a.length !== b.length) return false;
+		for (var i = 0; i < a.length; i++) {
+			if (a[i] !== b[i]) return false;
+		}
+		return true;
+	}
+
+	function pwAclSaveOrder() {
+		var ids = pwAclGetOrder();
+		var btn = document.getElementById('pw-acl-save-order');
+		XHR.get('<%=api.url("save_acl_rule_order")%>', { ids: ids.join(',') }, function(x) {
+			if (x && x.status == 200) {
+				pwAclOriginOrder = pwAclGetOrder();
+				btn.style.display = 'none';
+			} else {
+				pwAlert('<%:Save failed!%>');
+			}
+		});
+	}
+
+	function pwAclEscapeHtml(s) {
+		return String(s || "").replace(/[&<>"']/g, function(c) {
+			return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+		});
+	}
+
+	function pwAclLoad() {
+		XHR.get('<%=api.url("get_acl_rules")%>', null, function(x, result) {
+			if (!x || x.status != 200) {
+				pwAlert('<%:Error%>');
+				return;
+			}
+			var grid = document.getElementById('pw-acl-grid');
+			var rowTpl = document.getElementById('acl-row-template');
+			grid.querySelectorAll('.pw-acl-row:not(.pw-row-header)').forEach(function(el) { el.remove(); });
+
+			var list = Array.isArray(result) ? result : [];
+			if (list.length === 0) {
+				grid.insertAdjacentHTML('beforeend', '<div class="pw-empty-row"><%:This section contains no values yet%></div>');
+				pwAclOriginOrder = [];
+				return;
+			}
+			list.forEach(function(rule, i) {
+				var html = rowTpl.innerHTML;
+				html = html.split('{{id}}').join(rule.id);
+				html = html.split('{{remarks}}').join(pwAclEscapeHtml(rule.remarks));
+				html = html.split('{{interface}}').join(pwAclEscapeHtml(rule.interface));
+				html = html.split('{{checked}}').join(rule.enabled == "1" ? "checked" : "");
+				var sources = Array.isArray(rule.sources) ? rule.sources : [];
+				html = html.split('{{sources}}').join(sources.map(pwAclEscapeHtml).join('<br/>') || '-');
+
+				var wrap = document.createElement('div');
+				wrap.innerHTML = html.trim();
+				var row = wrap.firstElementChild;
+				row.classList.add('cbi-rowstyle-' + (i % 2 + 1));
+				grid.appendChild(row);
+			});
+
+			pwAclOriginOrder = pwAclGetOrder();
+			pwAclInitSortable();
+		});
+	}
+
+	function pwAclInitSortable() {
+		var grid = document.getElementById('pw-acl-grid');
+		if (typeof Sortable === 'undefined') {
+			setTimeout(pwAclInitSortable, 200);
+			return;
+		}
+		if (grid._sortable_initialized) return;
+		grid._sortable_initialized = true;
+		Sortable.create(grid, {
+			handle: '.drag-handle',
+			draggable: '.cbi-section-table-row:not(.pw-row-header)',
+			animation: 150,
+			ghostClass: 'dragging-row',
+			onEnd: function() {
+				var newOrder = pwAclGetOrder();
+				var btn = document.getElementById('pw-acl-save-order');
+				btn.style.display = pwAclArraysEqual(newOrder, pwAclOriginOrder) ? 'none' : null;
+			}
+		});
+	}
+
+	pwAclLoad();
+</script>

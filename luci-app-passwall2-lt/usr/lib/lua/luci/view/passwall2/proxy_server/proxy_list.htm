@@ -1,0 +1,220 @@
+<%
+local api = require "luci.passwall2.api"
+-%>
+<link rel="stylesheet" href="<%=resource%>/view/<%=api.appname%>/nodes.css">
+<%+passwall2/modal_node/overlay%>
+<style>
+#cbi-passwall2-proxy {
+	--pw-cols: 40px minmax(140px,1fr) 220px 200px;
+	--pw-proxy-meta-cols: 100px 100px;
+}
+
+.pw-proxy-row {
+	grid-template-columns: var(--pw-cols);
+}
+
+.pw-proxy-meta {
+	display: grid;
+	grid-template-columns: var(--pw-proxy-meta-cols);
+	gap: 16px;
+}
+
+.pw-checkbox {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.pw-proxy-node {
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pw-proxy-node .pw-proxy-current {
+	display: block;
+	font-size: 0.82em;
+	opacity: 0.7;
+}
+
+.pw-proxy-status {
+	font-weight: bold;
+}
+
+.pw-proxy-status .ok { color: #2dbf6b; }
+.pw-proxy-status .bad { color: #e0445b; }
+
+.pw-proxy-actions {
+	display: flex;
+	gap: 4px;
+	justify-content: flex-end;
+}
+
+@media screen and (max-width: 1152px) {
+	#cbi-passwall2-proxy {
+		--pw-cols: 40px 1fr;
+	}
+
+	.pw-proxy-row {
+		grid-template-columns: 40px 1fr;
+		grid-template-areas:
+			"check node"
+			"check meta"
+			"actions actions";
+		row-gap: 6px;
+	}
+
+	.pw-checkbox { grid-area: check; }
+	.pw-proxy-node { grid-area: node; }
+	.pw-proxy-actions { grid-area: actions; }
+
+	.pw-proxy-meta {
+		display: flex;
+		grid-area: meta;
+		gap: 10px;
+		justify-content: flex-start;
+		font-size: 0.9em;
+	}
+
+	.pw-proxy-meta .pw-cell {
+		text-align: left;
+	}
+
+	.pw-proxy-meta .pw-cell[data-label]::before {
+		content: attr(data-label) " : ";
+		opacity: 0.6;
+		font-size: 0.85em;
+	}
+
+	.pw-proxy-actions {
+		padding-top: 6px;
+		border-top: 1px dashed var(--pw-border);
+	}
+}
+</style>
+
+<fieldset class="cbi-section" id="cbi-passwall2-proxy">
+	<div class="pw-proxy-grid" id="pw-proxy-grid">
+		<div class="pw-proxy-row pw-row-header">
+			<div class="pw-cell pw-checkbox"></div>
+			<div class="pw-cell pw-proxy-node"><%:Node%></div>
+			<div class="pw-proxy-meta">
+				<div class="pw-cell"><%:Listen Port%></div>
+				<div class="pw-cell"><%:Status%></div>
+			</div>
+			<div class="pw-cell pw-proxy-actions"></div>
+		</div>
+	</div>
+	<div class="cbi-section-create cbi-tblsection-create">
+		<input class="cbi-button cbi-button-add" type="button" value="<%:Add%>" onclick="pwProxyAdd()">
+	</div>
+</fieldset>
+
+<script type="text/template" id="proxy-row-template">
+	<div class="pw-proxy-row cbi-section-table-row" id="pw-proxy-{{id}}">
+		<div class="pw-cell pw-checkbox">
+			<input type="checkbox" class="cbi-input-checkbox" {{checked}} onclick="pwProxyToggle('{{id}}', this)"/>
+		</div>
+		<div class="pw-cell pw-proxy-node">
+			{{node_remarks}}
+			<span class="pw-proxy-current">{{current_remarks}}</span>
+		</div>
+		<div class="pw-proxy-meta">
+			<div class="pw-cell pw-proxy-port" data-label="<%:Listen Port%>">{{port}}</div>
+			<div class="pw-cell pw-proxy-status" data-label="<%:Status%>" id="pw-proxy-status-{{id}}">---</div>
+		</div>
+		<div class="pw-cell pw-proxy-actions">
+			<input class="btn cbi-button cbi-button-edit" type="button" value="<%:Edit%>" onclick="pwProxyEdit('{{id}}')"/>
+			<input class="btn cbi-button cbi-button-remove" type="button" value="<%:Delete%>" onclick="pwProxyDelete('{{id}}')"/>
+		</div>
+	</div>
+</script>
+
+<script type="text/javascript">
+	function pwProxyAdd() {
+		window.location.href = '<%=api.url("add_socks")%>';
+	}
+
+	function pwProxyEdit(id) {
+		window.location.href = '<%=api.url("socks_config")%>/' + id;
+	}
+
+	function pwProxyDelete(id) {
+		pwConfirm("<%:Are you sure to delete this rule?%>", function() {
+			XHR.get('<%=api.url("del_socks")%>', { id: id }, function(x) {
+				if (x && x.status == 200) {
+					document.getElementById('pw-proxy-' + id).remove();
+				} else {
+					pwAlert("<%:Error%>");
+				}
+			});
+		});
+	}
+
+	function pwProxyToggle(id, box) {
+		XHR.get('<%=api.url("toggle_socks_enabled")%>', { id: id, enabled: box.checked ? 1 : 0 }, function(x) {
+			if (!x || x.status != 200) {
+				pwAlert("<%:Error%>");
+				box.checked = !box.checked;
+			}
+		});
+	}
+
+	function pwProxyEscapeHtml(s) {
+		return String(s || "").replace(/[&<>"']/g, function(c) {
+			return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+		});
+	}
+
+	function pwProxyPollStatus(ids) {
+		ids.forEach(function(id) {
+			XHR.get('<%=api.url("socks_status")%>', { id: id }, function(x, result) {
+				var el = document.getElementById('pw-proxy-status-' + id);
+				if (!el || !result) return;
+				var html = result.socks_status ? '<span class="ok">&#10003;</span>' : '<span class="bad">&#10007;</span>';
+				if (result.use_http) {
+					html += ' ' + (result.http_status ? '<span class="ok">&#10003;</span>' : '<span class="bad">&#10007;</span>');
+				}
+				el.innerHTML = html;
+			});
+		});
+	}
+
+	function pwProxyLoad() {
+		XHR.get('<%=api.url("get_socks_list")%>', null, function(x, result) {
+			var grid = document.getElementById('pw-proxy-grid');
+			var rowTpl = document.getElementById('proxy-row-template');
+			grid.querySelectorAll('.pw-proxy-row:not(.pw-row-header)').forEach(function(el) { el.remove(); });
+
+			var list = Array.isArray(result) ? result : [];
+			var ids = [];
+			if (list.length === 0) {
+				grid.insertAdjacentHTML('beforeend', '<div class="pw-empty-row"><%:This section contains no values yet%></div>');
+				return;
+			}
+			list.forEach(function(item, i) {
+				ids.push(item.id);
+				var html = rowTpl.innerHTML;
+				html = html.split('{{id}}').join(item.id);
+				html = html.split('{{port}}').join(pwProxyEscapeHtml(item.port));
+				html = html.split('{{checked}}').join(item.enabled == "1" ? "checked" : "");
+				html = html.split('{{node_remarks}}').join(pwProxyEscapeHtml(item.node_remarks) || '-');
+				html = html.split('{{current_remarks}}').join(pwProxyEscapeHtml(item.current_remarks));
+
+				var wrap = document.createElement('div');
+				wrap.innerHTML = html.trim();
+				var row = wrap.firstElementChild;
+				row.classList.add('cbi-rowstyle-' + (i % 2 + 1));
+				grid.appendChild(row);
+			});
+
+			if (ids.length) {
+				pwProxyPollStatus(ids);
+				setInterval(function() { pwProxyPollStatus(ids); }, 5000);
+			}
+		});
+	}
+
+	pwProxyLoad();
+</script>

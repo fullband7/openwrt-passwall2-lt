@@ -1,0 +1,330 @@
+<%
+local api = require "luci.passwall2.api"
+-%>
+<link rel="stylesheet" href="<%=resource%>/view/<%=api.appname%>/nodes.css">
+<%+passwall2/modal_node/overlay%>
+<style>
+#cbi-passwall2-subscribe {
+	--pw-cols: minmax(180px,1fr) 620px 50px;
+	--pw-sub-meta-cols: 70px 170px;
+}
+
+.pw-sub-row {
+	grid-template-columns: var(--pw-cols);
+}
+
+.pw-sub-meta {
+	display: grid;
+	grid-template-columns: var(--pw-sub-meta-cols);
+	gap: 16px;
+}
+
+.pw-sub-group {
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pw-sub-group .pw-sub-url {
+	display: block;
+	font-size: 0.82em;
+	opacity: 0.7;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pw-sub-actions {
+	display: flex;
+	gap: 4px;
+	justify-content: flex-end;
+}
+
+@media screen and (max-width: 1152px) {
+	#cbi-passwall2-subscribe {
+		--pw-cols: 1fr;
+	}
+
+	.pw-sub-row {
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			"group"
+			"meta"
+			"actions";
+		row-gap: 6px;
+	}
+
+	.pw-sub-group { grid-area: group; }
+	.pw-sub-actions { grid-area: actions; }
+
+	.pw-sub-meta {
+		display: flex;
+		grid-area: meta;
+		gap: 10px;
+		justify-content: flex-start;
+		font-size: 0.9em;
+	}
+
+	.pw-sub-meta .pw-cell {
+		text-align: left;
+	}
+
+	.pw-sub-meta .pw-cell[data-label]::before {
+		content: attr(data-label) " : ";
+		opacity: 0.6;
+		font-size: 0.85em;
+	}
+
+	.pw-sub-actions {
+		padding-top: 6px;
+		border-top: 1px dashed var(--pw-border);
+	}
+}
+</style>
+
+<div id="add_sub_link_div" class="pw-modal">
+	<div class="pw-modal-container">
+		<h3><%:Add Subscription Link%></h3>
+		<div class="value-custom">
+			<input type="text" class="pw-modal-input" id="sub_link_input" placeholder="https://" autocomplete="off" />
+		</div>
+		<div class="pw-modal-buttons">
+			<input class="btn cbi-button cbi-button-add" type="button" id="sub_link_add_btn" onclick="pwSubConfirmAdd()" value="<%:Add%>" />
+			<input class="btn cbi-button cbi-button-remove" type="button" onclick="pwSubCloseAddDiv()" value="<%:Close%>" />
+		</div>
+		<p class="pw-modal-status" id="sub_link_status"></p>
+	</div>
+</div>
+
+<div id="sub_reassign_div" class="pw-modal">
+	<div class="pw-modal-container">
+		<h3><%:Reassign Group%></h3>
+		<div class="value-custom">
+			<input type="text" class="pw-modal-input" id="sub_reassign_input" autocomplete="off" />
+		</div>
+		<div class="pw-modal-buttons">
+			<input class="btn cbi-button cbi-button-edit" type="button" id="sub_reassign_save_btn" onclick="pwSubConfirmReassign()" value="<%:Save%>" />
+			<input class="btn cbi-button cbi-button-remove" type="button" onclick="pwSubCloseReassignDiv()" value="<%:Close%>" />
+		</div>
+		<p class="pw-modal-status" id="sub_reassign_status"></p>
+	</div>
+</div>
+
+<fieldset class="cbi-section" id="cbi-passwall2-subscribe">
+	<div class="cbi-section-descr pw-rule-note">
+		<%:Add a subscription link to automatically build nodes from it. Nodes created from a subscription are placed in their own group.%>
+	</div>
+	<div class="pw-sub-grid" id="pw-sub-grid">
+		<div class="pw-sub-row pw-row-header">
+			<div class="pw-cell pw-sub-group"><%:Group%></div>
+			<div class="pw-sub-meta">
+				<div class="pw-cell"><%:Nodes%></div>
+				<div class="pw-cell"><%:Last Updated%></div>
+			</div>
+			<div class="pw-cell pw-sub-actions"></div>
+		</div>
+	</div>
+	<div class="cbi-section-create cbi-tblsection-create">
+		<input class="cbi-button cbi-button-add" id="pw-sub-add-btn" type="button" value="<%:Add Subscription Link%>" onclick="pwSubOpenAddDiv()">
+	</div>
+</fieldset>
+
+<script type="text/template" id="sub-row-template">
+	<div class="pw-sub-row cbi-section-table-row" id="pw-sub-{{id}}">
+		<div class="pw-cell pw-sub-group">
+			{{group}}
+			<span class="pw-sub-url" title="{{url}}">{{url}}</span>
+		</div>
+		<div class="pw-sub-meta">
+			<div class="pw-cell" data-label="<%:Nodes%>">{{count}}</div>
+			<div class="pw-cell" data-label="<%:Last Updated%>">{{last_update}}</div>
+		</div>
+		<div class="pw-cell pw-sub-actions">
+			<input class="btn cbi-button cbi-button-apply" type="button" value="<%:Update%>" data-id="{{id}}" onclick="pwSubUpdate(this)"/>
+			<input class="btn cbi-button cbi-button-edit" type="button" value="<%:Reassign Group%>" data-id="{{id}}" data-group="{{group}}" onclick="pwSubReassign(this)"/>
+			<input class="btn cbi-button cbi-button-remove" type="button" value="<%:Delete%>" data-id="{{id}}" onclick="pwSubDelete(this)"/>
+		</div>
+	</div>
+</script>
+
+<script type="text/javascript">
+	function pwSubEscapeHtml(s) {
+		return String(s || "").replace(/[&<>"']/g, function(c) {
+			return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+		});
+	}
+
+	function pwSubFormatDate(ts) {
+		ts = parseInt(ts, 10);
+		if (!ts) return "-";
+		var d = new Date(ts * 1000);
+		return d.toLocaleString();
+	}
+
+	function pwSubOpenAddDiv() {
+		var input = document.getElementById('sub_link_input');
+		input.value = '';
+		var status = document.getElementById('sub_link_status');
+		status.className = 'pw-modal-status';
+		status.textContent = '';
+		pwOpenModal(document.getElementById('add_sub_link_div'));
+		input.focus();
+	}
+
+	function pwSubCloseAddDiv() {
+		pwCloseModal(document.getElementById('add_sub_link_div'));
+	}
+
+	function pwSubConfirmAdd() {
+		var input = document.getElementById('sub_link_input');
+		var url = input.value.trim();
+		var status = document.getElementById('sub_link_status');
+		var addBtn = document.getElementById('sub_link_add_btn');
+		if (!url) {
+			input.focus();
+			return;
+		}
+		status.className = 'pw-modal-status pw-status-loading';
+		status.textContent = "<%:Loading the subscription%>";
+		addBtn.disabled = true;
+
+		var xhr = new XMLHttpRequest();
+		xhr.open('POST', '<%=api.url("subscribe_add")%>', true);
+		xhr.onload = function() {
+			addBtn.disabled = false;
+			var data = null;
+			try { data = JSON.parse(xhr.responseText); } catch (e) {}
+			if (data && data.status == "ok") {
+				status.className = 'pw-modal-status pw-status-ok';
+				status.textContent = "<%:Successful%>";
+				setTimeout(function() {
+					pwSubCloseAddDiv();
+					window.location.reload();
+				}, 700);
+			} else {
+				status.className = 'pw-modal-status pw-status-error';
+				status.textContent = (data && data.message) || "<%:No response from the link%>";
+			}
+		};
+		xhr.onerror = function() {
+			addBtn.disabled = false;
+			status.className = 'pw-modal-status pw-status-error';
+			status.textContent = "<%:No response from the link%>";
+		};
+		var formData = new FormData();
+		formData.append("url", url);
+		xhr.send(formData);
+	}
+
+	document.getElementById('sub_link_input').addEventListener('keydown', function(e) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			pwSubConfirmAdd();
+		}
+	});
+
+	var pwSubReassignId = null;
+
+	function pwSubReassign(btn) {
+		pwSubReassignId = btn.dataset.id;
+		var input = document.getElementById('sub_reassign_input');
+		input.value = btn.dataset.group || '';
+		var status = document.getElementById('sub_reassign_status');
+		status.className = 'pw-modal-status';
+		status.textContent = '';
+		pwOpenModal(document.getElementById('sub_reassign_div'));
+		input.focus();
+	}
+
+	function pwSubCloseReassignDiv() {
+		pwCloseModal(document.getElementById('sub_reassign_div'));
+	}
+
+	function pwSubConfirmReassign() {
+		var input = document.getElementById('sub_reassign_input');
+		var name = input.value.trim();
+		var status = document.getElementById('sub_reassign_status');
+		if (!name) {
+			input.focus();
+			return;
+		}
+		XHR.get('<%=api.url("subscribe_reassign_group")%>', { id: pwSubReassignId, group: name }, function(x, data) {
+			if (data && data.status == "ok") {
+				pwSubCloseReassignDiv();
+				pwSubLoad();
+			} else {
+				status.className = 'pw-modal-status pw-status-error';
+				status.textContent = (data && data.message) || "<%:Error%>";
+			}
+		});
+	}
+
+	document.getElementById('sub_reassign_input').addEventListener('keydown', function(e) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			pwSubConfirmReassign();
+		}
+	});
+
+	function pwSubUpdate(btn) {
+		var id = btn.dataset.id;
+		btn.disabled = true;
+		var orig = btn.value;
+		btn.value = "<%:Updating...%>";
+		XHR.get('<%=api.url("subscribe_update")%>', { id: id }, function(x, data) {
+			if (data && data.status == "ok") {
+				pwSubLoad();
+			} else {
+				btn.disabled = false;
+				btn.value = orig;
+				pwAlert((data && data.message) || "<%:Error%>");
+			}
+		});
+	}
+
+	function pwSubDelete(btn) {
+		var id = btn.dataset.id;
+		pwConfirm("<%:Are you sure you want to delete this subscription and its nodes?%>", function() {
+			XHR.get('<%=api.url("subscribe_delete")%>', { id: id }, function(x, data) {
+				if (data && data.status == "ok") {
+					pwSubLoad();
+				} else {
+					pwAlert("<%:Error%>");
+				}
+			});
+		});
+	}
+
+	function pwSubLoad() {
+		XHR.get('<%=api.url("get_subscribe_list")%>', null, function(x, result) {
+			var grid = document.getElementById('pw-sub-grid');
+			var rowTpl = document.getElementById('sub-row-template');
+			grid.querySelectorAll('.pw-sub-row:not(.pw-row-header)').forEach(function(el) { el.remove(); });
+
+			var list = Array.isArray(result) ? result : [];
+			if (list.length === 0) {
+				grid.insertAdjacentHTML('beforeend', '<div class="pw-empty-row"><%:This section contains no values yet%></div>');
+				return;
+			}
+			list.forEach(function(item, i) {
+				var html = rowTpl.innerHTML;
+				var groupEsc = pwSubEscapeHtml(item.group);
+				var urlEsc = pwSubEscapeHtml(item.url);
+				html = html.split('{{id}}').join(item.id);
+				html = html.split('{{group}}').join(groupEsc);
+				html = html.split('{{url}}').join(urlEsc);
+				html = html.split('{{count}}').join(pwSubEscapeHtml(item.count));
+				html = html.split('{{last_update}}').join(pwSubFormatDate(item.last_update));
+
+				var wrap = document.createElement('div');
+				wrap.innerHTML = html.trim();
+				var row = wrap.firstElementChild;
+				row.classList.add('cbi-rowstyle-' + (i % 2 + 1));
+				grid.appendChild(row);
+			});
+		});
+	}
+
+	pwSubLoad();
+</script>

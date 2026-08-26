@@ -1,0 +1,27 @@
+<%
+local api = require "luci.passwall2.api"
+-%>
+<style>
+    .dns-con {
+      padding: 1rem;
+    }
+	.dns-con p {
+	font-size:1rem;
+	line-height:2rem
+	}
+	.dns-con h2 {
+	margin-bottom:10px
+	}
+</style>
+<div class="dns-con">
+	<div id="faq_dns">
+		<h2>PassWall2 LT</h2>
+		<p>This is a modified version of Passwall2 with changes includin Lightweight and faster code execution.
+		</br>The main goal of this version is to make it suitable and performant for routers with Limited Flash Storage.
+		the modifications include a noticeable reduction in the unnecessary dependencies as well as optimizations in the Lua codes.
+		</p>	
+		<p style="color:#fb9a05">Please Note : Upgrading the Passwall2 will remove all the custom changes and revert everything back to the stock version.</p>
+	</div>
+	<div id="faq_reset"></div>
+</div>
+

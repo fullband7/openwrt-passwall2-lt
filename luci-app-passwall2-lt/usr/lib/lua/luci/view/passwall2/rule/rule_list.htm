@@ -1,0 +1,238 @@
+<%
+local api = require "luci.passwall2.api"
+-%>
+<script src="<%=resource%>/view/<%=api.appname%>/Sortable.min.js?v=26.1.27"></script>
+<link rel="stylesheet" href="<%=resource%>/view/<%=api.appname%>/nodes.css">
+<%+passwall2/modal_node/overlay%>
+<style>
+#cbi-passwall2-rules {
+	--pw-cols: 1fr 100px 100px 150px auto;
+}
+.pw-rule-row {
+	grid-template-columns: var(--pw-cols);
+	gap: 14px;
+}
+
+.pw-rule-remark {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	text-align: left;
+	min-width: 0;
+}
+
+.pw-rule-remark .drag-handle {
+	cursor: grab;
+	font-size: 20px;
+	font-weight: 100;
+	line-height: 1;
+	user-select: none;
+	flex: 0 0 auto;
+}
+
+.pw-rule-remark .pw-remark-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pw-badge-row {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.pw-rule-actions {
+	display: flex;
+	gap: 4px;
+	justify-content: flex-end;
+}
+
+.sortable-chosen {
+	background-color: var(--pw-row-bg-hover) !important;
+	opacity: 0.7;
+}
+
+.sortable-ghost {
+	background: var(--pw-accent-bg) !important;
+	height: 3px !important;
+}
+
+.dragging-row {
+	background-color: var(--pw-accent-bg) !important;
+	box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+}
+
+@media screen and (max-width: 1152px) {
+	#cbi-passwall2-rules {
+		--pw-cols: 1fr;
+	}
+
+	.pw-rule-row {
+		grid-template-columns: 1fr;
+		row-gap: 8px;
+	}
+
+	.pw-rule-actions {
+		justify-content: flex-start;
+		padding-top: 6px;
+		border-top: 1px dashed var(--pw-border);
+	}
+}
+</style>
+
+<fieldset class="cbi-section" id="cbi-passwall2-rules">
+	<div class="cbi-section-descr pw-rule-note">
+		<strong><%:Note%> :</strong>
+		<%:Rules are matched from top to bottom; the first matching rule decides how traffic is routed.%>
+	</div>
+	<div class="pw-rule-grid" id="pw-rule-grid">
+		<div class="pw-rule-row pw-row-header">
+			<div class="pw-cell" style="text-align:left"><%:Remarks%></div>
+			<div class="pw-cell"><%:Protocol%></div>
+			<div class="pw-cell"><%:Domain/IP%></div>
+			<div class="pw-cell pw-rule-actions"></div>
+		</div>
+	</div>
+	<div class="cbi-section-create cbi-tblsection-create">
+		<input class="cbi-button cbi-button-add" type="button" value="<%:Add%>" onclick="pwRuleAdd()">
+		<input class="cbi-button cbi-button-apply" style="display:none" type="button" id="pw-rule-save-order" value="<%:Save Order%>" onclick="pwRuleSaveOrder()">
+	</div>
+</fieldset>
+
+<script type="text/template" id="rule-row-template">
+	<div class="pw-rule-row cbi-section-table-row" id="pw-rule-{{id}}">
+		<div class="pw-rule-remark">
+			<span class="drag-handle" title="<%:Drag to reorder%>">⠿</span>
+			<span class="pw-remark-text">{{remarks}}</span>
+		</div>
+		<div class="pw-cell pw-badge-row">{{protocol}}</div>
+		<div class="pw-cell">{{network}}</div>
+		<div class="pw-cell pw-rule-count">{{counts}}</div>
+		<div class="pw-rule-actions">
+			<input class="btn cbi-button cbi-button-edit" type="button" value="<%:Edit%>" onclick="pwRuleEdit('{{id}}')"/>
+			<input class="btn cbi-button cbi-button-remove" type="button" value="<%:Delete%>" onclick="pwRuleDelete('{{id}}')"/>
+		</div>
+	</div>
+</script>
+
+<script type="text/javascript">
+	var pwRuleOriginOrder = [];
+
+	function pwRuleAdd() {
+		window.location.href = '<%=api.url("add_shunt_rule")%>';
+	}
+
+	function pwRuleEdit(id) {
+		window.location.href = '<%=api.url("shunt_rules")%>/' + id;
+	}
+
+	function pwRuleDelete(id) {
+		pwConfirm("<%:Are you sure to delete this rule?%>", function() {
+			XHR.get('<%=api.url("del_shunt_rule")%>', { id: id }, function(x) {
+				if (x && x.status == 200) {
+					document.getElementById('pw-rule-' + id).remove();
+				} else {
+					pwAlert("<%:Error%>");
+				}
+			});
+		});
+	}
+
+	function pwRuleGetOrder() {
+		var rows = document.querySelectorAll('#pw-rule-grid .cbi-section-table-row');
+		var ids = [];
+		rows.forEach(function(row) {
+			ids.push(row.id.replace('pw-rule-', ''));
+		});
+		return ids;
+	}
+
+	function pwRuleArraysEqual(a, b) {
+		if (a.length !== b.length) return false;
+		for (var i = 0; i < a.length; i++) {
+			if (a[i] !== b[i]) return false;
+		}
+		return true;
+	}
+
+	function pwRuleSaveOrder() {
+		var ids = pwRuleGetOrder();
+		var btn = document.getElementById('pw-rule-save-order');
+		XHR.get('<%=api.url("save_shunt_rule_order")%>', { ids: ids.join(',') }, function(x) {
+			if (x && x.status == 200) {
+				pwRuleOriginOrder = pwRuleGetOrder();
+				btn.style.display = 'none';
+			} else {
+				pwAlert("<%:Save failed!%>");
+			}
+		});
+	}
+
+	function pwRuleEscapeHtml(s) {
+		return String(s || "").replace(/[&<>"']/g, function(c) {
+			return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+		});
+	}
+
+	function pwRuleLoad() {
+		XHR.get('<%=api.url("get_shunt_rules")%>', null, function(x, result) {
+			var grid = document.getElementById('pw-rule-grid');
+			var rowTpl = document.getElementById('rule-row-template');
+			grid.querySelectorAll('.pw-rule-row:not(.pw-row-header)').forEach(function(el) { el.remove(); });
+
+			var list = Array.isArray(result) ? result : [];
+			if (list.length === 0) {
+				grid.insertAdjacentHTML('beforeend', '<div class="pw-empty-row"><%:This section contains no values yet%></div>');
+				pwRuleOriginOrder = [];
+				return;
+			}
+			list.forEach(function(rule, i) {
+				var html = rowTpl.innerHTML;
+				html = html.split('{{id}}').join(rule.id);
+				html = html.split('{{remarks}}').join(pwRuleEscapeHtml(rule.remarks));
+				html = html.split('{{network}}').join(pwRuleEscapeHtml(rule.network));
+				var counts = (rule.domain_count || 0) + ' <%:Domain%> / ' + (rule.ip_count || 0) + ' IP';
+				html = html.split('{{counts}}').join(counts);
+				var protocols = Array.isArray(rule.protocol) ? rule.protocol : [];
+				var badges = protocols.map(function(p) {
+					return '<span class="pw-badge">' + pwRuleEscapeHtml(p) + '</span>';
+				}).join('');
+				html = html.split('{{protocol}}').join(badges);
+
+				var wrap = document.createElement('div');
+				wrap.innerHTML = html.trim();
+				var row = wrap.firstElementChild;
+				row.classList.add('cbi-rowstyle-' + (i % 2 + 1));
+				grid.appendChild(row);
+			});
+
+			pwRuleOriginOrder = pwRuleGetOrder();
+			pwRuleInitSortable();
+		});
+	}
+
+	function pwRuleInitSortable() {
+		var grid = document.getElementById('pw-rule-grid');
+		if (typeof Sortable === 'undefined') {
+			setTimeout(pwRuleInitSortable, 200);
+			return;
+		}
+		if (grid._sortable_initialized) return;
+		grid._sortable_initialized = true;
+		Sortable.create(grid, {
+			handle: '.drag-handle',
+			draggable: '.cbi-section-table-row:not(.pw-row-header)',
+			animation: 150,
+			ghostClass: 'dragging-row',
+			onEnd: function() {
+				var newOrder = pwRuleGetOrder();
+				var btn = document.getElementById('pw-rule-save-order');
+				btn.style.display = pwRuleArraysEqual(newOrder, pwRuleOriginOrder) ? 'none' : null;
+			}
+		});
+	}
+
+	pwRuleLoad();
+</script>

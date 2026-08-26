@@ -1,0 +1,217 @@
+<div id="modal-mask"></div>
+
+<div id="pw-confirm-modal" class="pw-modal">
+	<div class="pw-modal-container">
+		<p class="pw-modal-message" id="pw-confirm-message"></p>
+		<div class="pw-modal-buttons">
+			<input class="btn cbi-button cbi-button-remove" type="button" id="pw-confirm-yes" value="<%:Yes%>" />
+			<input class="btn cbi-button cbi-button-edit" type="button" id="pw-confirm-no" value="<%:No%>" />
+		</div>
+	</div>
+</div>
+
+<div id="pw-alert-modal" class="pw-modal">
+	<div class="pw-modal-container">
+		<p class="pw-modal-message" id="pw-alert-message"></p>
+		<div class="pw-modal-buttons">
+			<input class="btn cbi-button cbi-button-apply" type="button" id="pw-alert-ok" value="<%:OK%>" />
+		</div>
+	</div>
+</div>
+
+<script type="text/javascript">
+	function pwGetBg(el) {
+		if (!el) return null;
+		var style = getComputedStyle(el);
+		var bgImage = style.backgroundImage;
+		var bgColor = style.backgroundColor;
+		return (bgImage !== 'none' || (!/rgba\([^,]+,[^,]+,[^,]+,\s*0\)/.test(bgColor) && bgColor !== 'transparent'))
+			? style.background
+			: null;
+	}
+
+	var pwModalState = {
+		scrollX: 0,
+		scrollY: 0,
+		locked: false,
+		maskParent: null,
+		maskNextSibling: null,
+		modalParent: null,
+		modalNextSibling: null
+	};
+
+	function pwGetScrollPosition() {
+		return {
+			x: window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0,
+			y: window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0
+		};
+	}
+
+	function pwOpenModal(el) {
+		if (!el) return;
+
+		var mask = document.getElementById('modal-mask');
+
+		if (!mask) return;
+
+		if (!pwModalState.locked) {
+			var pos = pwGetScrollPosition();
+
+			pwModalState.scrollX = pos.x;
+			pwModalState.scrollY = pos.y;
+
+			pwModalState.maskParent = mask.parentNode;
+			pwModalState.maskNextSibling = mask.nextSibling;
+
+			pwModalState.modalParent = el.parentNode;
+			pwModalState.modalNextSibling = el.nextSibling;
+
+			pwModalState.locked = true;
+		}
+
+		document.body.appendChild(mask);
+		document.body.appendChild(el);
+
+		el.style.background =
+			pwGetBg(document.querySelector('.cbi-section')) ||
+			pwGetBg(document.body) ||
+			'';
+
+		mask.style.display = 'block';
+		el.style.display = 'block';
+
+		document.body.classList.add('modal-open');
+
+		window.scrollTo({
+			left: pwModalState.scrollX,
+			top: pwModalState.scrollY,
+			behavior: 'instant'
+		});
+	}
+
+	function pwCloseModal(el) {
+		var mask = document.getElementById('modal-mask');
+
+		if (el) {
+			el.style.display = 'none';
+		}
+
+		if (mask) {
+			mask.style.display = 'none';
+		}
+
+		document.body.classList.remove('modal-open');
+
+		if (!pwModalState.locked) return;
+
+		var scrollX = pwModalState.scrollX;
+		var scrollY = pwModalState.scrollY;
+
+		if (pwModalState.modalParent) {
+			if (pwModalState.modalNextSibling && pwModalState.modalNextSibling.parentNode === pwModalState.modalParent) {
+				pwModalState.modalParent.insertBefore(el, pwModalState.modalNextSibling);
+			} else {
+				pwModalState.modalParent.appendChild(el);
+			}
+		}
+
+		if (pwModalState.maskParent && mask) {
+			if (pwModalState.maskNextSibling && pwModalState.maskNextSibling.parentNode === pwModalState.maskParent) {
+				pwModalState.maskParent.insertBefore(mask, pwModalState.maskNextSibling);
+			} else {
+				pwModalState.maskParent.appendChild(mask);
+			}
+		}
+
+		pwModalState.locked = false;
+
+		requestAnimationFrame(function() {
+			window.scrollTo({
+				left: scrollX,
+				top: scrollY,
+				behavior: 'instant'
+			});
+
+			requestAnimationFrame(function() {
+				window.scrollTo({
+					left: scrollX,
+					top: scrollY,
+					behavior: 'instant'
+				});
+			});
+		});
+	}
+
+	function pwShouldBlockScroll(target) {
+		if (!pwModalState.locked) return false;
+		var el = target;
+		while (el && el.nodeType === 1 && el !== document.body) {
+			if (getComputedStyle(el).pointerEvents !== 'none') return false;
+			el = el.parentNode;
+		}
+		return true;
+	}
+
+	if (!window.__pwScrollLockInit) {
+		window.__pwScrollLockInit = true;
+		var pwBlockScrollEvent = function(e) {
+			if (pwShouldBlockScroll(e.target)) e.preventDefault();
+		};
+		document.addEventListener('wheel', pwBlockScrollEvent, { passive: false });
+		document.addEventListener('touchmove', pwBlockScrollEvent, { passive: false });
+	}
+
+	function pwConfirm(message, onConfirm) {
+		var box = document.getElementById('pw-confirm-modal');
+		var messageBox = document.getElementById('pw-confirm-message');
+		var yesBtn = document.getElementById('pw-confirm-yes');
+		var noBtn = document.getElementById('pw-confirm-no');
+
+		if (!box || !messageBox || !yesBtn || !noBtn) return;
+
+		messageBox.textContent = message;
+
+		function cleanup() {
+			yesBtn.removeEventListener('click', onYes);
+			noBtn.removeEventListener('click', onNo);
+		}
+
+		function onYes() {
+			cleanup();
+			pwCloseModal(box);
+
+			if (typeof onConfirm === 'function') {
+				onConfirm();
+			}
+		}
+
+		function onNo() {
+			cleanup();
+			pwCloseModal(box);
+		}
+
+		yesBtn.addEventListener('click', onYes);
+		noBtn.addEventListener('click', onNo);
+
+		pwOpenModal(box);
+	}
+
+	function pwAlert(message) {
+		var box = document.getElementById('pw-alert-modal');
+		var messageBox = document.getElementById('pw-alert-message');
+		var okBtn = document.getElementById('pw-alert-ok');
+
+		if (!box || !messageBox || !okBtn) return;
+
+		messageBox.textContent = message;
+
+		function onOk() {
+			okBtn.removeEventListener('click', onOk);
+			pwCloseModal(box);
+		}
+
+		okBtn.addEventListener('click', onOk);
+
+		pwOpenModal(box);
+	}
+</script>
