@@ -1,0 +1,33 @@
+<%
+local api = self.api
+-%>
+<script type="text/javascript">
+	//<![CDATA[
+	const node_id = <%=api.json_script(self.section)%>;
+	const node_config_url = <%=api.json_script(api.url("node_config"))%> + "/" + encodeURIComponent(node_id);
+
+	function waitForElement(selector, callback) {
+		const el = document.querySelector(selector);
+		if (el) return callback(el);
+		const observer = new MutationObserver(() => {
+			const el = document.querySelector(selector);
+			if (el) {
+				observer.disconnect();
+				callback(el);
+			}
+		});
+		observer.observe(document.body, { childList: true, subtree: true });
+	}
+
+	document.addEventListener("DOMContentLoaded", function () {
+		waitForElement('select[name*="<%=api.appname%>"][name*="protocol"]', function(el) {
+			let o_val = el.value;
+			el.addEventListener("change", () => {
+				el.blur();
+				if (el.value.startsWith("_") || (o_val.startsWith("_") && !el.value.startsWith("_"))) {
+					window.location.href = node_config_url + "?select_proto=" + encodeURIComponent(el.value);
+				}
+			});
+		});
+	});
+</script>

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+[ "$ACTION" = "ifup" ] || exit 0
+[ "$(uci -q get passwall2.@global[0].enabled)" = "1" ] || exit 0
+[ -f /var/lock/passwall2_ready.lock ] || exit 0
+
+default_device=$(ip route | awk '/^default/ {for (i = 1; i < NF; i++) if ($i == "dev") {print $(i + 1); exit}}')
+[ "$default_device" = "$DEVICE" ] || exit 0
+
+LOCK_FILE_DIR=/var/lock
+LOCK_FILE="${LOCK_FILE_DIR}/passwall2_ifup.lock"
+[ ! -d "${LOCK_FILE_DIR}" ] && mkdir -p "${LOCK_FILE_DIR}"
+
+if [ -s "${LOCK_FILE}" ]; then
+	SPID=$(cat "${LOCK_FILE}")
+	[ -e "/proc/${SPID}/status" ] && exit 1
+fi
+
+(
+	/etc/init.d/passwall2 restart >/dev/null 2>&1
+	rm -f "${LOCK_FILE}"
+) &
+echo $! > "${LOCK_FILE}"
+logger -p notice -t network -s "passwall2: restart when $INTERFACE ifup"

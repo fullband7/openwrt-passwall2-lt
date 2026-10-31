@@ -1,0 +1,46 @@
+<%
+local api = require "luci.passwall2.api"
+-%>
+<script type="text/javascript">
+	//<![CDATA[
+	const socks_id = decodeURIComponent(window.location.pathname.substring(window.location.pathname.lastIndexOf("/") + 1));
+	const prompt_text = <%=api.json_script(translate("Please enter the node keyword, pay attention to distinguish between spaces, uppercase and lowercase."))%>;
+	const url_add_node = <%=api.json_script(api.url("socks_autoswitch_add_node"))%>;
+	const url_remove_node = <%=api.json_script(api.url("socks_autoswitch_remove_node"))%>;
+	function add_node_by_key() {
+		var key = prompt(prompt_text, "");
+		if (key) {
+			window.location.href = url_add_node + "?id=" + encodeURIComponent(socks_id) + "&key=" + encodeURIComponent(key);
+		}
+	}
+	function remove_node_by_key() {
+		var key = prompt(prompt_text, "");
+		if (key) {
+			window.location.href = url_remove_node + "?id=" + encodeURIComponent(socks_id) + "&key=" + encodeURIComponent(key);
+		}
+	}
+</script>
+<style>
+.key-btn-div {
+	display: table-cell;
+	padding: 5px 0 5px;
+}
+@media screen and (max-width: 600px) {
+	.key-btn-div {
+		display: block;
+	}
+	.key-label {
+		display: none !important;
+	}
+}
+.key-btn-div .cbi-button {
+	margin-bottom: 2px;
+}
+</style>
+<div class="cbi-value" id="cbi-<%=self.config.."-"..section.."-"..self.option%>" data-index="<%=self.index%>" data-depends="<%=pcdata(self:deplist2json(section))%>">
+	<label class="cbi-value-title key-label">　</label>
+	<div class="key-btn-div">
+		<input class="btn cbi-button cbi-button-add" type="button" onclick="add_node_by_key()" value="<%:Add nodes to the standby node list by keywords%>" />
+		<input class="btn cbi-button cbi-button-remove" type="button" onclick="remove_node_by_key()" value="<%:Delete nodes in the standby node list by keywords%>" />
+	</div>
+</div>
