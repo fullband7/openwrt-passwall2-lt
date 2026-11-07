@@ -43,17 +43,17 @@ The overall codebase is roughly **20% smaller** than the official version, mainl
 OpenWrt 24.10
 
 ```bash
-wget -O /tmp/luci-app-passwall2-26-r8-lt.ipk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/v26.10-r8-lt/luci-app-passwall2-lt.ipk
-opkg install /tmp/luci-app-passwall2-lt.ipk
-rm /tmp/luci-app-passwall2-lt.ipk
+wget -O /tmp/luci-app-passwall2-lt_26.10-r7.ipk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/26.10-R7/luci-app-passwall2-lt_26.10-r7.ipk
+opkg install /tmp/luci-app-passwall2-lt_26.10-r7.ipk
+rm /tmp/luci-app-passwall2-lt_26.10-r7.ipk
 service rpcd restart
 ```
 
 OpenWrt 25.12
 
 ```bash
-wget -O /tmpluci-app-passwall2-26-r8-lt.apk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/v26.10-r8-lt/luci-app-passwall2-lt.apk
-apk add --allow-untrusted /tmp/luci-app-passwall2-lt.apk
-rm /tmp/luci-app-passwall2-lt.apk
+wget -O /tmp/luci-app-passwall2-lt-26.10-r7.apk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/26.10-R7/luci-app-passwall2-lt-26.10-r7.apk
+apk add --allow-untrusted /tmp/luci-app-passwall2-lt-26.10-r7.apk
+rm /tmp/luci-app-passwall2-lt-26.10-r7.apk
 service rpcd restart
 ```
