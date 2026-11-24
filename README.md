@@ -44,7 +44,7 @@ OpenWrt 25.12
 
 APK packages are signed. Install the public key once, so `apk` can verify the package without `--allow-untrusted`.
 
-1. Install the public key (one time):
+1. Install the public key (one time) :
 
 ```bash
 mkdir -p /etc/apk/keys
@@ -56,7 +56,7 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwInn/UwVHBKHawoKWz9RcJI1OzYw
 EOF
 ```
 
-2. Install the package:
+2. Install the package :
 
 ```bash
 wget -O /tmp/luci-app-passwall2-lt-26.11-r7.apk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/26.11-R7/luci-app-passwall2-lt-26.11-r7.apk
