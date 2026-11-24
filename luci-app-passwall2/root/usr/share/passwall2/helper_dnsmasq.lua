@@ -121,7 +121,10 @@ function copy_instance(var)
 	local TMP_DNSMASQ_PATH = var["TMP_DNSMASQ_PATH"]
 	local conf_lines = {}
 	local DEFAULT_DNSMASQ_CFGID = sys.exec("echo -n $(uci -q show dhcp.@dnsmasq[0] | awk 'NR==1 {split($0, conf, /[.=]/); print conf[2]}')")
-	for line in io.lines("/tmp/etc/dnsmasq.conf." .. DEFAULT_DNSMASQ_CFGID) do
+	local dnsmasq_conf = "/tmp/etc/dnsmasq.conf." .. DEFAULT_DNSMASQ_CFGID
+	local probe = io.open(dnsmasq_conf, "r")
+	if probe then probe:close() end
+	for line in (probe and io.lines(dnsmasq_conf) or function() return nil end) do
 		local filter
 		if line:find("passwall2") then filter = true end
 		if line:find("ubus") then filter = true end

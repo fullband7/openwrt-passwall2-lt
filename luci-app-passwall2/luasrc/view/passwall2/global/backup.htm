@@ -2,18 +2,16 @@
 local api = require "luci.passwall2.api"
 -%>
 
-<div class="cbi-section">
+<div class="cbi-section pw-maintain">
 	<h3><%:Backup and Restore%></h3>
 	<div class="cbi-section-descr">
-		<%:Backup or Restore Client and Server Configurations.%>
-		<br>
-		<font color="#fb9a05"><%:Note: Restoring configurations across different versions may cause compatibility issues.%></font>
+		<p><%:Backup or Restore Client Configurations.%></p>
+		<font color="#fb9a05"><%:Note : Restoring configurations across different versions may cause compatibility issues.%></font>
 	</div>
 	<div class="cbi-value" id="_maintain_div">
-		<label class="cbi-value-title"><%:Maintenance Actions%></label>
 		<div class="cbi-value-field pw-maintain-toolbar">
 			<input class="btn cbi-button cbi-button-save" type="button" onclick="dl_backup()" value="<%:DL Backup%>" />
-			<input class="btn cbi-button cbi-button-apply" type="button" onclick="show_upload_win()" value="<%:RST Backup%>" />
+			<input class="btn cbi-button cbi-button-apply" type="button" onclick="show_upload_win()" value="<%:UL Backup%>" />
 			<input class="btn cbi-button cbi-button-reset" type="button" onclick="do_reset()" value="<%:Do Reset%>" />
 		</div>
 	</div>
@@ -26,17 +24,50 @@ local api = require "luci.passwall2.api"
 			<input class="cbi-input-file" type="file" id="ulfile" accept=".tar.gz" />
 		</div>
 		<div class="up-button-container">
-			<input class="btn cbi-button cbi-button-apply" type="button" id="upload-btn" onclick="do_upload()" value="<%:UL Restore%>" />
+			<input class="btn cbi-button cbi-button-apply" type="button" id="upload-btn" onclick="do_upload()" value="<%:Upload%>" />
 			<input class="btn cbi-button cbi-button-remove" type="button" onclick="close_upload_win()" value="<%:CLOSE WIN%>" />
 		</div>
 	</div>
 </div>
 
 <style>
+
+	.pw-maintain .cbi-section-descr {
+		margin-top: 10px;
+	}
+
+	.pw-maintain .cbi-section-descr p {
+		font-size: 15px;
+		font-weight: 600;
+		padding: 0;
+	}
+
+	.pw-maintain .cbi-section-descr font {
+		font-size: 14px;
+	}
+
+	.pw-maintain .cbi-button,
+	.up-modal .cbi-button {
+		border-radius: 4px !important;
+	}
+
+	.pw-maintain .cbi-value {
+		margin-top: 20px;
+	}
+
 	.pw-maintain-toolbar {
 		display: flex;
-		flex-wrap: wrap;
+		flex-direction: column;
+		align-items: stretch;
 		gap: 6px;
+		width: 100%;
+		max-width: 260px;
+	}
+
+	.pw-maintain-toolbar .cbi-button {
+		width: 100%;
+		margin: 0;
+		text-align: center;
 	}
 
 	.up-modal {
@@ -44,11 +75,11 @@ local api = require "luci.passwall2.api"
 		left: 50%;
 		top: 50%;
 		transform: translate(-50%, -50%);
-		background: white;
+		background: #1a232b;
 		padding: 20px;
-		border: 1px solid #ccc;
-		border-radius: 3px;
-		box-shadow: 0 0 10px rgba(0,0,0,0.5);
+		border: 1px solid var(--pw-border);
+		border-radius: 12px;
+		box-shadow: 0 20px 35px #0000004d;
 		z-index: 1000;
 		width: 90%;
 		max-width: 400px;
@@ -79,10 +110,7 @@ local api = require "luci.passwall2.api"
 		margin-top: 15px;
 		margin-bottom: 30px;
 	}
-
-	.up-modal h3 {
-		background: inherit;
-	}
+	
 </style>
 
 <script>

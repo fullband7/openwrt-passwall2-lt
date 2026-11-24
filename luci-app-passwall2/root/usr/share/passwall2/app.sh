@@ -196,10 +196,16 @@ run_xray() {
 	local _json_arg="$(json_dump)"
 	lua $UTIL_XRAY gen_config "${_json_arg}" > $config_file
 
-	$XRAY_BIN run -test -c "$config_file" > $log_file; local status=$?
+	if [ -z "$XRAY_BIN" ] || [ ! -x "$XRAY_BIN" ]; then
+		log 1 "$(i18n "%s not found, unable to start..." "xray")"
+		return 1
+	fi
+	local test_out
+	test_out=$("$XRAY_BIN" run -test -c "$config_file" 2>&1); local status=$?
 	if [ "${status}" == 0 ]; then
 		ln_run "$XRAY_BIN" xray $log_file run -c "$config_file"
 	else
+		log 1 "Xray config test failed (${status}): $(echo "$test_out" | tail -n 3)"
 		return ${status}
 	fi
 }

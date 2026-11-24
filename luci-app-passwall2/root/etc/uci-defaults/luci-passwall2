@@ -32,7 +32,14 @@ uci commit firewall
 
 [ ! -s "/etc/config/passwall2" ] && cp -f /usr/share/passwall2/0_default_config /etc/config/passwall2
 
-chmod +x /usr/share/passwall2/*.sh
+chmod 600 /etc/config/passwall2 2>/dev/null
+chmod 755 /etc/init.d/passwall2 /etc/hotplug.d/iface/98-passwall2 2>/dev/null
+chmod 755 /usr/share/passwall2/*.sh
+
+/etc/init.d/passwall2 enable >/dev/null 2>&1
+if [ -x /etc/init.d/ucitrack ] && ubus -t 1 list service >/dev/null 2>&1; then
+	/etc/init.d/ucitrack restart >/dev/null 2>&1
+fi
 
 rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
 rm -rf /tmp/luci-modulecache/

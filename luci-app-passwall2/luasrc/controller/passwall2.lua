@@ -353,17 +353,39 @@ end
 function update_node()
 	local id = http.formvalue("id")
 	local data = http.formvalue("data")
-	if api.is_safe_id(id) and data and uci:get(appname, id) == "nodes" then
+	if api.is_safe_id(id) and data then
+		local section_type = uci:get(appname, id)
 		local data_t = jsonParse(data)
 		if type(data_t) == "table" and next(data_t) then
-			for k, v in pairs(data_t) do
-				if type(k) == "string" and k:match("^[%w_]+$") and (type(v) == "string" or type(v) == "number") then
-					uci:set(appname, id, k, (tostring(v):gsub("%z", "")))
+			if section_type == "nodes" then
+				for k, v in pairs(data_t) do
+					if type(k) == "string" and k:match("^[%w_]+$") and (type(v) == "string" or type(v) == "number") then
+						uci:set(appname, id, k, (tostring(v):gsub("%z", "")))
+					end
+				end
+				api.uci_save(uci, appname)
+				http_write_json_ok()
+				return
+			elseif section_type == "global" then
+				local node = data_t.node
+				local valid = false
+				if type(node) == "string" then
+					if node == "" then
+						valid = true
+					elseif node:find("^Socks_") then
+						local socks_id = node:sub(1 + #"Socks_")
+						valid = api.is_safe_id(socks_id) and uci:get(appname, socks_id) == "socks"
+					else
+						valid = api.is_safe_id(node) and uci:get(appname, node) == "nodes"
+					end
+				end
+				if valid then
+					uci:set(appname, id, "node", node)
+					api.uci_save(uci, appname)
+					http_write_json_ok()
+					return
 				end
 			end
-			api.uci_save(uci, appname)
-			http_write_json_ok()
-			return
 		end
 	end
 	http_write_json_error()
@@ -1193,7 +1215,7 @@ function restore_backup()
 			if restore_archive_is_safe() and api.sys.call("tar -xzf " .. util.shellquote(RESTORE_FILE) .. " -C " .. util.shellquote(RESTORE_DIR)) == 0 then
 				for _, backup_file in ipairs(backup_files) do
 					local temp_file = RESTORE_DIR .. backup_file
-					if fs.stat(temp_file, "type") == "reg" then
+					if fs.lstat(temp_file, "type") == "reg" then
 						api.sys.call("cp -f " .. util.shellquote(temp_file) .. " " .. util.shellquote(backup_file))
 					end
 				end

@@ -26,8 +26,20 @@ unset_lock() {
 	exec 999>&-
 }
 
+run_app() {
+	[ -d "$(dirname "$LOG_FILE")" ] || mkdir -p "$(dirname "$LOG_FILE")"
+	if [ ! -r "$APP_FILE" ]; then
+		log 0 "Cannot read ${APP_FILE}"
+		return 1
+	fi
+	sh "$APP_FILE" "$1" 999>&-
+}
+
 boot_func() {
 	local delay=$(uci -q get ${CONFIG}.@global_delay[0].start_delay || echo 1)
+	case "$delay" in
+		''|*[!0-9]*) delay=1 ;;
+	esac
 	if [ "$delay" -gt 0 ]; then
 		log_i18n 0 "Start after a delay of %s seconds!" "${delay}"
 		sleep $delay
@@ -45,7 +57,7 @@ start() {
 		log_i18n 0 "The script is already running, do not run it again. Exit."
 		exit 0
 	}
-	$APP_FILE start 999>&-
+	run_app start
 	unset_lock
 }
 
@@ -54,7 +66,7 @@ stop() {
 		log_i18n 0 "Stop the script and wait for a timeout, then exit without repeating the process."
 		exit 0
 	}
-	$APP_FILE stop 999>&-
+	run_app stop
 	unset_lock
 }
 
@@ -63,8 +75,8 @@ restart() {
 		log_i18n 0 "The script is already running, do not run it again. Exit."
 		exit 0
 	}
-	$APP_FILE stop 999>&-
-	$APP_FILE start 999>&-
+	run_app stop
+	run_app start
 	unset_lock
 }
 

@@ -1,0 +1,47 @@
+<%+cbi/valueheader%>
+<%
+local current = self:cfgvalue(section)
+if type(current) == "table" then
+	current = next(current)
+end
+if current == nil then
+	current = self.default
+end
+current = type(current) == "string" and (current:match("%S+") or "") or ""
+
+local blocks = { { items = {} } }
+local group_index = {}
+for i, key in ipairs(self.keylist) do
+	local item = { key = key, label = self.vallist[i] or key }
+	local group = self.group and self.group[i]
+	if not group or group == "" then
+		local items = blocks[1].items
+		items[#items + 1] = item
+	else
+		local idx = group_index[group]
+		if not idx then
+			blocks[#blocks + 1] = { label = group, items = {} }
+			idx = #blocks
+			group_index[group] = idx
+		end
+		local items = blocks[idx].items
+		items[#items + 1] = item
+	end
+end
+%>
+<div id="<%=cbid%>.main" style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px;max-width:100%;">
+	<select class="cbi-input-select" id="<%=cbid%>" name="<%=cbid%>" data-update="change" style="max-width:100%;">
+<% for _, block in ipairs(blocks) do
+	if block.label then %>
+		<optgroup label="<%=pcdata(block.label)%>">
+<%	end
+	for _, item in ipairs(block.items) do %>
+			<option value="<%=pcdata(item.key)%>"<% if item.key == current then %> selected="selected"<% end %>><%=pcdata(item.label)%></option>
+<%	end
+	if block.label then %>
+		</optgroup>
+<%	end
+end %>
+	</select>
+</div>
+<%+cbi/valuefooter%>

@@ -40,6 +40,26 @@ local api = self.api
 		return box;
 	}
 
+	function render_node_actions(container, select) {
+		const old = container.querySelector(".node-actions");
+		if (old) container.removeChild(old);
+		const value = select.value;
+		if (!value || value.indexOf("_default") === 0 || value.indexOf("_direct") === 0 || value.indexOf("_blackhole") === 0) {
+			return;
+		}
+		let to_url = url_node_config + "/" + encodeURIComponent(value);
+		if (value.indexOf("Socks_") === 0) {
+			to_url = url_socks_config + "/" + encodeURIComponent(value.substring("Socks_".length));
+		}
+		const log_url = /\.node$/.test(select.id) ? url_redir_log + "?id=default&name=global" : null;
+		container.appendChild(make_actions(to_url, log_url));
+	}
+
+	function bind_node_actions(container, select) {
+		select.addEventListener("change", function() { render_node_actions(container, select); });
+		render_node_actions(container, select);
+	}
+
 	function go() {
 		var _status = document.getElementsByClassName('_status');
 		for (var i = 0; i < _status.length; i++) {
@@ -82,31 +102,19 @@ local api = self.api
 			for (var i = 0; i < all_node.length; i++) {
 				var el = all_node[i];
 				if (!reg1.test(el.id)) continue;
-
-				var node_select = el;
-				if (!node_select) continue;
-				var cbid = el.id.replace(/\.main$/, "");
-				var hidden_select = document.getElementById(cbid);
-				var node_select_value = hidden_select ? hidden_select.options[0].value : "";
-				if (!node_select_value || node_select_value.indexOf("_default") === 0 || node_select_value.indexOf("_direct") === 0 || node_select_value.indexOf("_blackhole") === 0) {
-					continue;
-				}
-
-				var to_url = url_node_config + "/" + encodeURIComponent(node_select_value);
-				if (node_select_value.indexOf("Socks_") === 0) {
-					to_url = url_socks_config + "/" + encodeURIComponent(node_select_value.substring("Socks_".length));
-				}
-				var log_url = cbid.match(/\.node$/) ? url_redir_log + "?id=default&name=global" : null;
-				node_select.appendChild(make_actions(to_url, log_url));
+				var select = document.getElementById(el.id.replace(/\.main$/, ""));
+				if (select) bind_node_actions(el, select);
 			}
 		}
 
 		var socks = document.getElementById("cbi-<%=api.appname%>-socks");
 		if (socks) {
 			var socks_enabled_dom = document.getElementById(global_id + "-socks_enabled");
-			socks_enabled_dom.parentNode.removeChild(socks_enabled_dom);
 			var descr = socks.getElementsByClassName("cbi-section-descr")[0];
-			descr.outerHTML = socks_enabled_dom.outerHTML;
+			if (socks_enabled_dom && descr) {
+				socks_enabled_dom.parentNode.removeChild(socks_enabled_dom);
+				descr.outerHTML = socks_enabled_dom.outerHTML;
+			}
 			rows = socks.getElementsByClassName("cbi-section-table-row");
 			for (var i = 0; i < rows.length; i++) {
 				try {
@@ -133,28 +141,30 @@ local api = self.api
 	}
 	document.addEventListener("DOMContentLoaded", function () {
 		const hiddenSelect = document.getElementById("cbid." + appname + "." + global_cfgid + ".node");
-		let o_val = hiddenSelect.value
-		const o_hasItem = shunt_list.find(element => element.id == o_val);
-		hiddenSelect.addEventListener("change", function(el){
-			let new_val = el.target.value
-			const new_hasItem = shunt_list.find(element => element.id == new_val);
-			if (new_hasItem || (o_hasItem && !new_hasItem)) {
-				XHR.get('<%=api.url("update_node")%>', {
-					id: global_cfgid,
-					data: JSON.stringify({
-						node: new_val
-					})
-				},
-				function(x, data) {
-					if (x && x.status == 200 && data.code == 1) {
-						window.location.reload();
-					}
-					else {
-						alert(<%=api.json_script(translate("Error"))%>);
-					}
-				});
-			}
-		});
+		if (hiddenSelect) {
+			let o_val = hiddenSelect.value
+			const o_hasItem = shunt_list.find(element => element.id == o_val);
+			hiddenSelect.addEventListener("change", function(el){
+				let new_val = el.target.value
+				const new_hasItem = shunt_list.find(element => element.id == new_val);
+				if (new_hasItem || (o_hasItem && !new_hasItem)) {
+					XHR.get('<%=api.url("update_node")%>', {
+						id: global_cfgid,
+						data: JSON.stringify({
+							node: new_val
+						})
+					},
+					function(x, data) {
+						if (x && x.status == 200 && data && data.code == 1) {
+							window.location.reload();
+						}
+						else {
+							alert(<%=api.json_script(translate("Error"))%>);
+						}
+					});
+				}
+			});
+		}
 		go();
 	});
 </script>

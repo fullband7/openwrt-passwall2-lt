@@ -4,9 +4,9 @@
 LOCK_FILE=${LOCK_PATH}/${CONFIG}_monitor.lock
 
 ENABLED=$(config_t_get global enabled 0)
-[ "$ENABLED" != 1 ] && return 1
+[ "$ENABLED" != 1 ] && exit 1
 ENABLED=$(config_t_get global_delay start_daemon 0)
-[ "$ENABLED" != 1 ] && return 1
+[ "$ENABLED" != 1 ] && exit 1
 sleep 58s
 while [ "$ENABLED" -eq 1 ]; do
 	[ -f "$LOCK_FILE" ] && {

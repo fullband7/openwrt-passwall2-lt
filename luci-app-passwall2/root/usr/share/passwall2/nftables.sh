@@ -16,6 +16,8 @@ NFTSET_VPS6="passwall2_vps6"
 . /lib/functions/network.sh
 
 FWI=$(uci -q get firewall.passwall2.path 2>/dev/null)
+[ -n "$FWI" ] || FWI=/var/etc/passwall2.include
+mkdir -p "$(dirname "$FWI")"
 FAKE_IP="198.18.0.0/16"
 FAKE_IP_6="fc00::/18"
 

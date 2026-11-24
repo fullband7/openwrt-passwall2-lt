@@ -7,8 +7,6 @@ local has_xray = api.finded_com("xray")
 m = Map(appname)
 api.set_apply_on_parse(m)
 
-m:append(Template(appname .. "/cbi/nodes_listvalue_com"))
-
 local nodes_table = {}
 for k, e in ipairs(api.get_valid_nodes()) do
 	nodes_table[#nodes_table + 1] = e
@@ -80,7 +78,7 @@ o = s:taboption("Main", Flag, "enabled", translate("Main Switch"))
 o.rmempty = false
 
 o = s:taboption("Main", ListValue, "node", "<a style='color: #fb9a05;text-decoration: none;cursor: default'>" .. translate("Node") .. "</a>")
-o.template = appname .. "/cbi/nodes_listvalue"
+o.template = appname .. "/cbi/nodes_select"
 o:value("", translate("Close"))
 o.group = {""}
 
@@ -122,7 +120,7 @@ if has_xray and #nodes_table > 0 then
 
 				o = s:taboption("Shunt", ListValue, vid .. "-main_node", string.format('<a style="color:#fb9a05">%s</a>', translate("Preproxy Node")), translate("Set the node to be used as a pre-proxy. Each rule (including <code>Default</code>) has a separate switch that controls whether this rule uses the pre-proxy or not."))
 				o:depends(vid .. "-preproxy_enabled", "1")
-				o.template = appname .. "/cbi/nodes_listvalue"
+				o.template = appname .. "/cbi/nodes_select"
 				o.group = {}
 				for k1, v1 in pairs(socks_list) do
 					o:value(v1.id, v1.remark)
@@ -165,7 +163,7 @@ if has_xray and #nodes_table > 0 then
 						o:value("_default", translate("Use default node"))
 						o:value("_direct", translate("Direct Connection"))
 						o:value("_blackhole", translate("Blackhole (Block)"))
-						o.template = appname .. "/cbi/nodes_listvalue"
+						o.template = appname .. "/cbi/nodes_select"
 						o.group = {"","","",""}
 
 						local pt = s:taboption("Shunt", ListValue, vid .. "-".. id .. "_proxy_tag", string.format('* <a style="color:#fb9a05">%s</a>', pcdata(e.remarks) .. " " .. translate("Preproxy")))
@@ -215,7 +213,7 @@ if has_xray and #nodes_table > 0 then
 				o.default = "_direct"
 				o:value("_direct", translate("Direct Connection"))
 				o:value("_blackhole", translate("Blackhole (Block)"))
-				o.template = appname .. "/cbi/nodes_listvalue"
+				o.template = appname .. "/cbi/nodes_select"
 				o.group = {"",""}
 				for k1, v1 in pairs(socks_list) do
 					o:value(v1.id, v1.remark)
