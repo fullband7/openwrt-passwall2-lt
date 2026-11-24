@@ -40,20 +40,36 @@ The overall codebase is roughly **20% smaller** than the official version, mainl
 
 ## ⬇️ Installation 
 
-OpenWrt 24.10
+OpenWrt 25.12
+
+APK packages are signed. Install the public key once, so `apk` can verify the package without `--allow-untrusted`.
+
+1. Install the public key (one time):
 
 ```bash
-wget -O /tmp/luci-app-passwall2-lt_26.10-r7.ipk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/26.10-R7/luci-app-passwall2-lt_26.10-r7.ipk
-opkg install /tmp/luci-app-passwall2-lt_26.10-r7.ipk
-rm /tmp/luci-app-passwall2-lt_26.10-r7.ipk
+mkdir -p /etc/apk/keys
+cat > /etc/apk/keys/passwall2-lt.pem <<'EOF'
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwInn/UwVHBKHawoKWz9RcJI1OzYw
+0j+xUAVnEBPSORnVCVV8BI2ILroXFAWthwYlWuLaQjE16DSRiWUYl2KLEw==
+-----END PUBLIC KEY-----
+EOF
+```
+
+2. Install the package:
+
+```bash
+wget -O /tmp/luci-app-passwall2-lt-26.11-r7.apk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/26.11-R7/luci-app-passwall2-lt-26.11-r7.apk
+apk add /tmp/luci-app-passwall2-lt-26.11-r7.apk
+rm /tmp/luci-app-passwall2-lt-26.11-r7.apk
 service rpcd restart
 ```
 
-OpenWrt 25.12
+OpenWrt 24.10
 
 ```bash
-wget -O /tmp/luci-app-passwall2-lt-26.10-r7.apk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/26.10-R7/luci-app-passwall2-lt-26.10-r7.apk
-apk add --allow-untrusted /tmp/luci-app-passwall2-lt-26.10-r7.apk
-rm /tmp/luci-app-passwall2-lt-26.10-r7.apk
+wget -O /tmp/luci-app-passwall2-lt_26.11-r7.ipk https://github.com/fullband7/openwrt-passwall2-lt/releases/download/26.11-R7/luci-app-passwall2-lt_26.11-r7.ipk
+opkg install /tmp/luci-app-passwall2-lt_26.11-r7.ipk
+rm /tmp/luci-app-passwall2-lt_26.11-r7.ipk
 service rpcd restart
 ```
