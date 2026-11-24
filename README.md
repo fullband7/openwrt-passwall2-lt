@@ -47,7 +47,6 @@ APK packages are signed. Install the public key once, so `apk` can verify the pa
 1. Install the public key (one time) :
 
 ```bash
-mkdir -p /etc/apk/keys
 cat > /etc/apk/keys/passwall2-lt.pem <<'EOF'
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwInn/UwVHBKHawoKWz9RcJI1OzYw
